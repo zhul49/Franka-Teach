@@ -59,6 +59,20 @@ class FrankaServer:
                     self.action_socket.send(self.get_state())
                 else:
                     franka_control: FrankaAction = pickle.loads(command)
+                    print(
+                        "SERVER got action:",
+                        "reset=",
+                        franka_control.reset,
+                        "pos=",
+                        None if franka_control.pos is None else np.array(franka_control.pos),
+                        "quat=",
+                        None if franka_control.quat is None else np.array(franka_control.quat),
+                        "gripper=",
+                        franka_control.gripper,
+                        "t=",
+                        franka_control.timestamp,
+                        flush=True,
+                    )
                     if franka_control.reset:
                         self._robot.reset_joints(gripper_open=franka_control.gripper)
                         time.sleep(1)
@@ -105,6 +119,8 @@ class Robot(FrankaInterface):
             target_mat = transform_utils.pose2mat(pose=(target_pos, target_quat))
 
             current_quat, current_pos = self.last_eef_quat_and_pos
+            print("osc_move current_pos:", None if current_pos is None else current_pos.flatten(), flush=True)
+            print("osc_move target_pos :", None if target_pos is None else np.array(target_pos).flatten(), flush=True)
             current_mat = transform_utils.pose2mat(
                 pose=(current_pos.flatten(), current_quat.flatten())
             )
@@ -112,6 +128,11 @@ class Robot(FrankaInterface):
             pose_error = transform_utils.get_pose_error(
                 target_pose=target_mat, current_pose=current_mat
             )
+
+            print("pose_error xyz:", pose_error[:3], "norm:", float(np.linalg.norm(pose_error[:3])), flush=True)
+            print("axis_angle:", action_axis_angle, "norm:", float(np.linalg.norm(action_axis_angle)), flush=True)
+            print("sending OSC action len=", len(action), "action=", action, flush=True)
+
 
             if np.dot(target_quat, current_quat) < 0.0:
                 current_quat = -current_quat
